@@ -49,7 +49,8 @@ In terms of AWS ecosystem, it seems to fit in a the use case of ad-hoc querying 
  
  -  As with most things, you can mix and match AWS services based on your workloads. One possibility is to use an on-demand EMR cluster to process data and dump results to S3. Then use Athena to create adhoc tables and run reports. 
  
- - “Facebook uses Presto for interactive queries against several internal data stores, including their 300PB data warehouse. Over 1,000 Facebook employees use Presto daily to run more than 30,000 queries that in total scan over a petabyte each per day” Source : [https://prestodb.io/]()
+ - “Facebook uses Presto for interactive queries against several internal data stores, including their 300PB data warehouse. Over 1,000 Facebook employees use Presto daily to run more than 30,000 queries that in total scan over a petabyte each per day”
+ Source : [https://prestodb.io/]()
 
 
 ## Limitations
@@ -145,44 +146,79 @@ LOCATION 's3://aws-athena-data-jfj28fj3lt05kg84kkdj444/company_funding/';
 ```
 SELECT * from sampledata.companyfundingsmall ORDER BY raisedAmt DESC LIMIT 5;
 ```
- 
- -  Now, let's load a larger data set. The data source covers  over a billion Taxi trips  in New York City from 2014 and 2015. The source of data is [https://github.com/fivethirtyeight/uber-tlc-foil-response/tree/master/uber-trip-data](). The total size on disk is about 190GB. Note, Athena will report larger sizes because of how it manages the tables on top of S3. 
-   
-```
-  CREATE EXTERNAL TABLE sampledata.taxi (
-  vendor_name VARCHAR(3),
-  Trip_Pickup_DateTime TIMESTAMP,
-  Trip_Dropoff_DateTime TIMESTAMP,
-  Passenger_Count INT,
-  Trip_Distance FLOAT,
-  Start_Lon FLOAT,
-  Start_Lat FLOAT,
-  Rate_Code INT,
-  store_and_forward VARCHAR(3),
-  End_Lon FLOAT,
-  End_Lat FLOAT,
-  Payment_Type VARCHAR(32),
-  Fare_Amt FLOAT,
-  surcharge FLOAT,
-  mta_tax FLOAT,
-  Tip_Amt FLOAT,
-  Tolls_Amt FLOAT,
-  Total_Amt FLOAT
-  ) ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
-  LOCATION 's3://aws-athena-data-jfj28fj3lt05kg84kkdj444/taxi/';
-```
   
- - Let's run a query that scans a large amount of this data.  In my experiences, the following queries finish in under 40 seconds and scans about 200G of data
-    
-```
-SELECT vendor_name, sum(Total_Amt) as Total FROM sampledata.taxi GROUP BY vendor_name;
-```
+
+- Athena can also be used to read Cloudtrail data using the *com.amazon.emr.hive.serde.CloudTrailSerde*
+
 
 ```
-SELECT sum(Tip_Amt)/sum(Total_Amt) as Tip_PCT FROM sampledata.taxi;
+CREATE EXTERNAL TABLE sampledata.cloudtrail (
+eventversion STRING,
+userIdentity STRUCT<
+  type:STRING,
+  principalid:STRING,
+  arn:STRING,
+  accountid:STRING,
+  invokedby:STRING,
+  accesskeyid:STRING,
+  userName:STRING,
+  sessioncontext:STRUCT<
+    attributes:STRUCT<
+      mfaauthenticated:STRING,
+      creationdate:STRING>,
+    sessionIssuer:STRUCT<
+      type:STRING,
+      principalId:STRING,
+      arn:STRING,
+      accountId:STRING,
+      userName:STRING>>>,
+eventTime STRING,
+eventSource STRING,
+eventName STRING,
+awsRegion STRING,
+sourceIpAddress STRING,
+userAgent STRING,
+errorCode STRING,
+errorMessage STRING,
+requestParameters STRING,
+responseElements STRING,
+additionalEventData STRING,
+requestId STRING,
+eventId STRING,
+resources ARRAY<STRUCT<
+  ARN:STRING,accountId:
+  STRING,type:STRING>>,
+eventType STRING,
+apiVersion STRING,
+readOnly STRING,
+recipientAccountId STRING,
+serviceEventDetails STRING,
+sharedEventID STRING,
+vpcEndpointId STRING
+)
+ROW FORMAT SERDE 'com.amazon.emr.hive.serde.CloudTrailSerde'
+STORED AS INPUTFORMAT 'com.amazon.emr.cloudtrail.CloudTrailInputFormat'
+OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION 's3://2737690b14804c5ea383c41c83941d5f-logs/AWSLogs/759133634148/'
 ```
-  
- - Note, this could be further optimised by partitioning the data and using a columnar storage. This would optimise both the cost of running queries and the query time as well. Formats like ORC and Parquet are better suited for this as well. Here's another example provided by AWS that uses partitions. 
+
+ -  Query top IAM users and activities by eventname 
+```
+select count (*) as events, useridentity.username, eventname from cloudtrail
+where eventtime >= '2017-01-01T00:00:00Z' 
+and useridentity.type = 'IAMUser'
+group by useridentity.username, eventname
+order by events desc;
+```
+
+ - Find the top eventsources
+
+```
+select count (*) as events, eventsource from sampledata.cloudtrail group by eventsource order by events desc;
+```
+
+
+- Reading large volumes of data can be further optimised by partitioning the data and using a columnar storage. This would optimise both the cost of running queries and the query time as well. Formats like ORC and Parquet are better suited for this as well. Here's another example provided by AWS that uses partitions. 
  
       
 ```
@@ -357,12 +393,19 @@ As of this article, Athena only supports Console based queries and a Java SDK. T
   ```
 
 
-# References
+# References & further reading
 
  - [http://docs.aws.amazon.com/athena/latest/ug/what-is.html]()
 
  - [https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL]()
  
  - http://tech.marksblogg.com/billion-nyc-taxi-rides-aws-athena.html
-  
+
+ - https://aws.amazon.com/blogs/big-data/analyzing-vpc-flow-logs-with-amazon-kinesis-firehose-amazon-athena-and-amazon-quicksight/
+
+ - https://aws.amazon.com/blogs/big-data/top-10-performance-tuning-tips-for-amazon-athena/
 ============
+
+
+
+
