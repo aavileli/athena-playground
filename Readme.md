@@ -34,6 +34,8 @@ In terms of AWS ecosystem, it seems to fit in a the use case of ad-hoc querying 
  
  - When you create, update, or delete tables, those operations are guaranteed ACID-compliant. For example, if multiple users or clients attempt to create or alter an existing table at the same time, only one will be successful.
  
+ - No support for stored procedures
+
  - You can use Athena to query underlying Amazon S3 bucket data that's in a different region from the region where you initiate the query. This is useful because Athena, as of this article is only available in some regions
  
 - Athena table names are case-insensitive. But if you are interacting with Apache Spark, then your table column names must be lowercase. Athena is case-insensitive but Spark requires lowercase table names.
@@ -404,6 +406,7 @@ As of this article, Athena only supports Console based queries and a Java SDK. T
  - https://aws.amazon.com/blogs/big-data/analyzing-vpc-flow-logs-with-amazon-kinesis-firehose-amazon-athena-and-amazon-quicksight/
 
  - https://aws.amazon.com/blogs/big-data/top-10-performance-tuning-tips-for-amazon-athena/
+
 ============
 
 
