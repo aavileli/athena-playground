@@ -407,6 +407,9 @@ As of this article, Athena only supports Console based queries and a Java SDK. T
 
  - https://aws.amazon.com/blogs/big-data/top-10-performance-tuning-tips-for-amazon-athena/
 
+ - https://aws.amazon.com/blogs/big-data/analyzing-data-in-s3-using-amazon-athena/
+ 
+
 ============
 
 
